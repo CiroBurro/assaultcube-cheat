@@ -7,26 +7,45 @@
 #include "headers/process.h"
 #include "headers/offsets.h"
 #include "headers/memory.h"
+#include "headers/Overlay.h"
 
 bool health_hack = false;
 bool armor_hack = false;
 bool ammo_hack = false;
+bool ecs_hack = false;
+bool show_menu = false;
+
+void MyDrawings()
+{
+	Vector2 line_start_position(960, 0);
+	Vector2 enemyPosition(1000, 500);
+
+	DrawLine(line_start_position, enemyPosition, Colors::Green, 5.0f);
+}
 
 void RenderMenu()
 {
-	ImGui::Begin("Menu");
+	if (show_menu) {
+		ImGui::Begin("Menu");
 
-	ImGui::Checkbox("Enable infinite health", &health_hack);
-	ImGui::Checkbox("Enable infinite armor", &armor_hack);
-	ImGui::Checkbox("Enable infinite ammo", &ammo_hack);
+		ImGui::Checkbox("Enable infinite health", &health_hack);
+		ImGui::Checkbox("Enable infinite armor", &armor_hack);
+		ImGui::Checkbox("Enable infinite ammo", &ammo_hack);
+		ImGui::Checkbox("Enable ECS (Enemy ESP)", &ecs_hack);
 
-	ImGui::End();
+		ImGui::End();
+	} 
+	if (ecs_hack) {
+		MyDrawings();
+	}
 }
 
 int main()
 {
-	ImGuiBackend backend(800, 600, L"AssaultCube Cheat");
+	// Initialize ImGui backend
+	ImGuiBackend backend(1920, 1080, L"AssaultCube Cheat");
 
+	// Attach to the AssaultCube process and get the necessary addresses
 	Process process("ac_client.exe");
 	auto moduleBase = process.getModuleBaseAddress("ac_client.exe");
 	uint32_t localPlayerAddress{};
@@ -38,18 +57,21 @@ int main()
 		return 1;
 	}
 
+	/* debug prints
 	std::cout << "PID: " << process.getPid() << std::endl;
 	std::cout << "Module Base: " << std::hex << moduleBase << std::endl;
 	std::cout << "Local Player: " << std::hex << localPlayerAddress << std::endl;
 	std::cout << "Entity List: " << std::hex << entityListAddress << std::endl;
-
+	*/
 
 	std::uint32_t health{}, armor{}, mpt_57_ammo{}, mk_77_ammo{};
 
+	// Main loop
 	while (backend.ProcessMessages() && process) {
 		backend.NewFrame();
 		RenderMenu();
 
+		// Cheat logic: read and modify player values based on the enabled hacks
 		if (mem::read(process, moduleBase + offsets::local_player, localPlayerAddress) && localPlayerAddress != 0) {
 			const bool valuesRead =
 				mem::read(process, localPlayerAddress + offsets::health, health) &&

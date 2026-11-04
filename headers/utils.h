@@ -20,7 +20,11 @@ public:
 	AutoReleaseHandle(const AutoReleaseHandle&) = delete;
 	AutoReleaseHandle& operator=(const AutoReleaseHandle&) = delete;
 
-	// Move assignment operator
+	
+	// Define move constructor and move assignment operator for transferring ownership
+	AutoReleaseHandle(AutoReleaseHandle&& other) noexcept : handle(other.handle) {
+		other.handle = nullptr;
+	}
 	AutoReleaseHandle& operator=(AutoReleaseHandle&& other) noexcept {
 		if (this != &other) {
 			// Release currently owned resource
@@ -33,11 +37,6 @@ public:
 		}
 
 		return *this;
-	}
-
-	// Move constructor
-	AutoReleaseHandle(AutoReleaseHandle&& other) noexcept : handle(other.handle) {
-		other.handle = nullptr;
 	}
 
 	// Get method to access the underlying handle

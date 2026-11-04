@@ -6,6 +6,8 @@
 
 #include <string_view>
 
+extern bool show_menu;
+
 class ImGuiBackend
 {
 public:
@@ -27,6 +29,7 @@ private:
 	void CreateRenderTarget();
 	void CleanupRenderTarget();
 	void Resize(UINT width, UINT height);
+	void SetOverlayInteraction(bool interactive);
 
 	HWND window_ = nullptr;
 	ATOM windowClass_ = 0;

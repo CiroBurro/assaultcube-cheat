@@ -23,19 +23,16 @@ ImGuiBackend::ImGuiBackend(int width, int height, std::wstring_view title)
 {
 	CreateWindowClass(title);
 
-	RECT clientRect{ 0, 0, width, height };
-	AdjustWindowRect(&clientRect, WS_OVERLAPPEDWINDOW, FALSE);
-
 	std::wstring windowTitle(title);
 	window_ = CreateWindowExW(
-		0,
+		WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
 		MAKEINTRESOURCEW(windowClass_),
 		windowTitle.c_str(),
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		clientRect.right - clientRect.left,
-		clientRect.bottom - clientRect.top,
+		WS_POPUP,
+		0,
+		0,
+		width,
+		height,
 		nullptr,
 		nullptr,
 		GetModuleHandleW(nullptr),
@@ -43,6 +40,10 @@ ImGuiBackend::ImGuiBackend(int width, int height, std::wstring_view title)
 
 	if (!window_) {
 		throw std::runtime_error("Failed to create ImGui window.");
+	}
+
+	if (!SetLayeredWindowAttributes(window_, RGB(0, 0, 0), 0, LWA_COLORKEY)) {
+		throw std::runtime_error("Failed to configure transparent overlay window.");
 	}
 
 	CreateDevice();
@@ -58,12 +59,17 @@ ImGuiBackend::ImGuiBackend(int width, int height, std::wstring_view title)
 		throw std::runtime_error("Failed to initialize ImGui backends.");
 	}
 
+	RegisterHotKey(window_, 1, MOD_NOREPEAT, VK_F1);
+	SetOverlayInteraction(show_menu);
+
 	ShowWindow(window_, SW_SHOWDEFAULT);
 	UpdateWindow(window_);
 }
 
 ImGuiBackend::~ImGuiBackend()
 {
+	UnregisterHotKey(window_, 1);
+
 	if (ImGui::GetCurrentContext()) {
 		ImGui_ImplDX11_Shutdown();
 		ImGui_ImplWin32_Shutdown();
@@ -91,6 +97,11 @@ bool ImGuiBackend::ProcessMessages()
 		TranslateMessage(&message);
 		DispatchMessageW(&message);
 
+		if (message.message == WM_HOTKEY && message.wParam == 1) {
+			show_menu = !show_menu;
+			SetOverlayInteraction(show_menu);
+		}
+
 		if (message.message == WM_QUIT) {
 			closeRequested_ = true;
 		}
@@ -110,7 +121,7 @@ void ImGuiBackend::Render()
 {
 	ImGui::Render();
 
-	constexpr float clearColor[] = { 0.08f, 0.08f, 0.08f, 1.0f };
+	constexpr float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	context_->OMSetRenderTargets(1, renderTarget_.GetAddressOf(), nullptr);
 	context_->ClearRenderTargetView(renderTarget_.Get(), clearColor);
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -125,6 +136,10 @@ LRESULT CALLBACK ImGuiBackend::WindowProc(HWND window, UINT message, WPARAM wPar
 		auto* createStruct = reinterpret_cast<CREATESTRUCTW*>(lParam);
 		backend = static_cast<ImGuiBackend*>(createStruct->lpCreateParams);
 		SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(backend));
+	}
+
+	if (message == WM_NCHITTEST && !show_menu) {
+		return HTTRANSPARENT;
 	}
 
 	if (ImGui::GetCurrentContext() && ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam)) {
@@ -238,4 +253,35 @@ void ImGuiBackend::Resize(UINT width, UINT height)
 	context_->OMSetRenderTargets(0, nullptr, nullptr);
 	swapChain_->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
 	CreateRenderTarget();
+}
+
+void ImGuiBackend::SetOverlayInteraction(bool interactive)
+{
+	LONG_PTR exStyle = GetWindowLongPtrW(window_, GWL_EXSTYLE);
+
+	if (interactive)
+	{
+		exStyle &= ~WS_EX_TRANSPARENT;
+		exStyle &= ~WS_EX_NOACTIVATE;
+	}
+	else
+	{
+		exStyle |= WS_EX_TRANSPARENT;
+		exStyle |= WS_EX_NOACTIVATE;
+	}
+
+	SetWindowLongPtrW(window_, GWL_EXSTYLE, exStyle);
+
+	SetWindowPos(
+		window_,
+		HWND_TOPMOST,
+		0, 0, 0, 0,
+		SWP_NOMOVE |
+		SWP_NOSIZE |
+		SWP_FRAMECHANGED |
+		(interactive ? 0 : SWP_NOACTIVATE)
+	);
+
+	if (interactive)
+		SetForegroundWindow(window_);
 }

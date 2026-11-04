@@ -20,7 +20,7 @@ add_executable (ac_cheat
     "headers/process.h"
     "headers/memory.h"
     "headers/offsets.h"
-)
+ "headers/ecs.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET ac_cheat PROPERTY CXX_STANDARD 20)
@@ -44,7 +44,7 @@ add_library(imgui
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
-)
+ "headers/ecs.h")
 
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends) 
 
