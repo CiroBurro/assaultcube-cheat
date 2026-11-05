@@ -5,7 +5,9 @@
 #include <memory>
 #include <Windows.h>
 #include <memoryapi.h>
+#include <stdexcept>
 #include <span>
+#include <cstring>
 #include <vector>
 
 namespace mem {
@@ -57,17 +59,17 @@ namespace mem {
 	};
 
 	// Functions to patch instructions  in the target process
-	bool patch(Process &process, uintptr_t address, std::span<const BYTE> patchData)
+	inline bool patch(Process& process, uintptr_t address, std::span<const BYTE> patchData)
 	{
 		return write(process, address, patchData);
 	}
-	bool patch(Process& process, uintptr_t address, char* patchData)
+	inline bool patch(Process& process, uintptr_t address, char* patchData)
 	{
 		return write(process, address, std::span{reinterpret_cast<const BYTE*>(patchData), strlen(patchData)});
 	}
 
 	// Function to fill a region of memory in the target process with NOP instructions
-	bool nop(Process& process, uintptr_t address, size_t length)
+	inline bool nop(Process& process, uintptr_t address, size_t length)
 	{
 		USHORT arch = process.getArchitecture();
 		if (arch != IMAGE_FILE_MACHINE_AMD64 && arch != IMAGE_FILE_MACHINE_I386) {

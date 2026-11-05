@@ -8,22 +8,16 @@
 #include "headers/offsets.h"
 #include "headers/memory.h"
 #include "headers/Overlay.h"
+#include "headers/esp.h"
 
 bool health_hack = false;
 bool armor_hack = false;
 bool ammo_hack = false;
-bool ecs_hack = false;
+bool esp_hack = false;
 bool show_menu = false;
 
-void MyDrawings()
-{
-	Vector2 line_start_position(960, 0);
-	Vector2 enemyPosition(1000, 500);
 
-	DrawLine(line_start_position, enemyPosition, Colors::Green, 5.0f);
-}
-
-void RenderMenu()
+void RenderMenu(Process& process, uint32_t entityListAddress, uint32_t localPlayerAddress)
 {
 	if (show_menu) {
 		ImGui::Begin("Menu");
@@ -31,12 +25,12 @@ void RenderMenu()
 		ImGui::Checkbox("Enable infinite health", &health_hack);
 		ImGui::Checkbox("Enable infinite armor", &armor_hack);
 		ImGui::Checkbox("Enable infinite ammo", &ammo_hack);
-		ImGui::Checkbox("Enable ECS (Enemy ESP)", &ecs_hack);
+		ImGui::Checkbox("Enable ESP", &esp_hack);
 
 		ImGui::End();
 	} 
-	if (ecs_hack) {
-		MyDrawings();
+	if (esp_hack) {
+		draw_ecs(process, entityListAddress, localPlayerAddress);
 	}
 }
 
@@ -69,7 +63,7 @@ int main()
 	// Main loop
 	while (backend.ProcessMessages() && process) {
 		backend.NewFrame();
-		RenderMenu();
+		RenderMenu(process, entityListAddress, localPlayerAddress);
 
 		// Cheat logic: read and modify player values based on the enabled hacks
 		if (mem::read(process, moduleBase + offsets::local_player, localPlayerAddress) && localPlayerAddress != 0) {

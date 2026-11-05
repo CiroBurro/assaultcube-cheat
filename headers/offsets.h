@@ -25,4 +25,13 @@ namespace offsets {
 
 	const auto mpt_57_magazine = 0x11C;
 	const auto mk_77_magazine = 0x108;
+
+	const auto team = 0x30c;
+
+	const auto fov = 0x334;
+
+	// Other
+	const auto game_mode = 0x18ABF8;
+	const auto entity_count = 0x191FD4;
+
 }	
