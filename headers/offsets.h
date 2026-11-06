@@ -28,10 +28,11 @@ namespace offsets {
 
 	const auto team = 0x30c;
 
-	const auto fov = 0x334;
+	const auto fov_read_only = 0x334;
+	const auto scope_fov_read_only = 0x338;
 
 	// Other
 	const auto game_mode = 0x18ABF8;
 	const auto entity_count = 0x191FD4;
-
-}	
+	const auto fov = 0x18A7CC;
+}	const auto scope_fov = 0x18A834;

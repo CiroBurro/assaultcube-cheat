@@ -30,7 +30,7 @@ void RenderMenu(Process& process, uint32_t entityListAddress, uint32_t localPlay
 		ImGui::End();
 	} 
 	if (esp_hack) {
-		draw_ecs(process, entityListAddress, localPlayerAddress);
+		draw_esp(process, entityListAddress, localPlayerAddress);
 	}
 }
 

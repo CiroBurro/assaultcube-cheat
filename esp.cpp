@@ -7,7 +7,7 @@
 
 double const PI = 3.14159265358979323846;
 
-void draw_ecs(Process& process, uint32_t entityList, uint32_t localPlayer)
+void draw_esp(Process& process, uint32_t entityList, uint32_t localPlayer)
 {
 	auto moduleBase = process.getModuleBaseAddress("ac_client.exe");
 	uint32_t entityCount, game_mode; 
@@ -44,6 +44,7 @@ void draw_ecs(Process& process, uint32_t entityList, uint32_t localPlayer)
 
 		Vector2 screenPos = world_to_screen(
 			process,
+			moduleBase,
 			entityAddress,
 			localPlayer,
 			static_cast<int>(screenSize.x),
@@ -72,22 +73,21 @@ float dot(Vector3 a, Vector3 b)
 		a.z * b.z;
 }
 
-Vector2 world_to_screen(Process& process, uint32_t entityAddress, uint32_t localPlayer, int screenWidth, int screenHeight)
+Vector2 world_to_screen(Process& process, uint32_t moduleBase, uint32_t entityAddress, uint32_t localPlayer, int screenWidth, int screenHeight)
 {
 	Vector3 worldPos = get_entity_pos(process, entityAddress);
 	if (worldPos.x == 0.0f && worldPos.y == 0.0f && worldPos.z == 0.0f) {
 		return Vector2(-1.0f, -1.0f); // Invalid position
 	}
 
-	uint32_t fov;
-	float cam_x, cam_y, cam_z, cam_yaw, cam_pitch;
+	float cam_x, cam_y, cam_z, cam_yaw, cam_pitch, fov;
 
 	if (!mem::read<float>(process, localPlayer + offsets::head_coord_x, cam_x) ||
 		!mem::read<float>(process, localPlayer + offsets::head_coord_y, cam_y) ||
 		!mem::read<float>(process, localPlayer + offsets::head_coord_z, cam_z) ||
 		!mem::read<float>(process, localPlayer + offsets::cam_yaw, cam_yaw) ||
 		!mem::read<float>(process, localPlayer + offsets::cam_pitch, cam_pitch) ||
-		!mem::read<uint32_t>(process, localPlayer + offsets::fov, fov)) {
+		!mem::read<float>(process, moduleBase + offsets::fov, fov)) {
 		return Vector2(-1.0f, -1.0f); // Failed to read camera data
 	}
 
