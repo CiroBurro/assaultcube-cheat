@@ -39,7 +39,10 @@ public:
 		return *this;
 	}
 
-	// Get method to access the underlying handle
+	/* @brief Get method to access the underlying handle
+	* 
+	* @return The underlying HANDLE value.
+	*/
 	HANDLE get() const {
 		return handle;
 	}

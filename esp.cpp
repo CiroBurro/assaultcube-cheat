@@ -9,6 +9,7 @@
 
 double const PI = 3.14159265358979323846;
 
+// Computes the dot product of two 3D vectors.
 float dot(Vector3 a, Vector3 b)
 {
 	return a.x * b.x +
@@ -18,6 +19,7 @@ float dot(Vector3 a, Vector3 b)
 
 void draw_esp(Memory& mem, uint32_t localPlayer)
 {
+	// Retrive necessary data from memory
 	auto moduleBase = mem.getModuleBaseAddress("ac_client.exe");
 	uint32_t entityList, entityCount, game_mode;
 	try {
@@ -26,12 +28,17 @@ void draw_esp(Memory& mem, uint32_t localPlayer)
 		game_mode = mem.Read<uint32_t>(moduleBase + offsets::game_mode);
 	}
 	catch (const std::runtime_error& e) {
-		return;
+		return; // If any read operation fails, simply return without drawing ESP
 	}
 
 	const Vector2 screenSize = GetScreenSize();
 	const Vector2 line_start_position(screenSize.x * 0.5f, screenSize.y);
 
+	/* List of game modes that are team-based.
+	* 7: team deathmatch
+	* 20: team survivor
+	* 21: team one shot one kill
+	*/
 	const std::vector<uint32_t> team_game_modes{7, 20, 21};
 
 	// Iterate through the entity list and draw ESP for each entity
@@ -44,18 +51,18 @@ void draw_esp(Memory& mem, uint32_t localPlayer)
 			team_player = mem.Read<uint32_t>(localPlayer + offsets::team);
 		}
 		catch (const std::runtime_error& e) {
-			continue;
+			continue; // If any read operation fails for this entity, skip to the next one
 		}
 		if (entityAddress == 0 || health <= 0) {
-			continue;
+			continue; // Skip invalid or dead entities
 		}
 
-		// Skip entities in the same team for team-based game modes
 		if (std::find(team_game_modes.begin(), team_game_modes.end(), game_mode) != team_game_modes.end() &&
 			team_entity == team_player) {
 			continue; // Skip entities in the same team
 		}
 
+		// Retrive the screen position of the entity
 		Vector2 screenPos = world_to_screen(
 			mem,
 			moduleBase,
@@ -70,7 +77,8 @@ void draw_esp(Memory& mem, uint32_t localPlayer)
 	}
 }
 
-Vector3 get_entity_pos(Memory& mem, uint32_t entityAddress) {
+Vector3 get_entity_pos(Memory& mem, uint32_t entityAddress) noexcept {
+	// Attempt to read the entity's (head) position from memory
 	try {
 		float x = mem.Read<float>(entityAddress + offsets::head_coord_x);
 		float y = mem.Read<float>(entityAddress + offsets::head_coord_y);
@@ -78,18 +86,29 @@ Vector3 get_entity_pos(Memory& mem, uint32_t entityAddress) {
 		return Vector3(x, y, z);
 	}
 	catch (const std::runtime_error& e) {
-		// Handle the error, e.g., log it or return a default value
 		return Vector3(0.0f, 0.0f, 0.0f); // Return a default value
 	}
 }
 
-Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress, uint32_t localPlayer, int screenWidth, int screenHeight)
+Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress, uint32_t localPlayer, int screenWidth, int screenHeight) noexcept
 {
+	/* World to screen conversion:
+	* 1. World Space (3d coordinates) -> View Space (3D coordinates in the camera's reference frame)
+	* 2. View Space -> Clip Space (Prospettic projection of the 3D coordinates on the screen)
+	* 3. Clip Space -> NDC (Normalized Device Coordinates)
+	* 4. NDC -> Screen Space (2D coordinates on the screen)
+	*
+	* I don't have the view and projection matrices to compute the transformation.
+	* I'll manually do the conversion using the camera's orientation, position and fov.
+	*/
+
+	// Get the world position of the entity
 	Vector3 worldPos = get_entity_pos(mem, entityAddress);
 	if (worldPos.x == 0.0f && worldPos.y == 0.0f && worldPos.z == 0.0f) {
 		return Vector2(-1.0f, -1.0f); // Invalid position
 	}
 
+	// Retrive camera parameters to perform the transformation from memory
 	float cam_x, cam_y, cam_z, cam_yaw, cam_pitch, fov;
 	try {
 		cam_x = mem.Read<float>(localPlayer + offsets::head_coord_x);
@@ -106,10 +125,14 @@ Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress
 
 	float aspectRatio = (float)screenWidth / screenHeight;
 
+	// Degrees to radians conversion
 	auto yaw_rad = cam_yaw * (PI / 180.0f);
 	auto pitch_rad = cam_pitch * (PI / 180.0f);
 
-	// Camera direction vectors
+	/* Camera direction vectors
+	* Trigonomtric functions are used to compute the camera's forward, right and up vectors
+	* based on its yaw and pitch angles.
+	*/
 	Vector3 camForward(
 		cosf(pitch_rad) * sinf(yaw_rad),
 		cosf(pitch_rad) * (-cosf(yaw_rad)),
@@ -128,38 +151,50 @@ Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress
 		cosf(pitch_rad)
 	);
 
-	// World Space -> View Space
-	Vector3 delta = worldPos - Vector3(cam_x, cam_y, cam_z);
+	// 1. World Space->View Space
+	Vector3 delta = worldPos - Vector3(cam_x, cam_y, cam_z); // Distance from camera to entity 
 
-	float viewX = dot(delta, camRight);
+	/* Entity coordinates relative to camera orientation
+	* X: The right direction of the camera. Positive X is to the right of the camera. (Horizontal axis of the screen)
+	* Y: The up direction of the camera. Positive Y is above the camera. (Vertical axis of the screen)
+	* Z: The forward direction of the camera. Positive Z is in the direction the camera is facing. (Depth axis in the game)
+	*/ 
+	float viewX = dot(delta, camRight); 
 	float viewY = dot(delta, camUp);
 	float viewZ = dot(delta, camForward);
 
 	if (viewZ <= 0.01f)
-		return Vector2(-1.0f, -1.0f);
+		return Vector2(-1.0f, -1.0f); // Entity is behind the camera, so just return an invalid position
 
-	// View Space -> Clip Space
+	// 2. View Space -> Clip Space
 	auto horizontal_fov_rad = static_cast<float>(fov) * (PI / 180.0f);
-	float horizontal_tan = tanf(horizontal_fov_rad / 2.0f);
-	if (!std::isfinite(horizontal_tan) || horizontal_tan <= 0.0f) {
-		return Vector2(-1.0f, -1.0f);
+	float horizontal_fov_tan = tanf(horizontal_fov_rad / 2.0f);
+	if (!std::isfinite(horizontal_fov_tan) || horizontal_fov_tan <= 0.0f) {
+		return Vector2(-1.0f, -1.0f); // Invalid FOV, return an invalid position
 	}
-	float vertical_tan = horizontal_tan / aspectRatio;
+	float vertical_fov_tan = horizontal_fov_tan / aspectRatio;
 
-	float clipX = viewX / horizontal_tan;
-	float clipY = viewY / vertical_tan;
+	/* Apply the perspective projection to X and Y coordinates.
+	* X is divided by tan(fov_h/2), this tells us how much to scale the X coordinate based on the horizontal FOV.
+	* Y is divided by tan(fov_v/2), this tells us how much to scale the Y coordinate based on the vertical FOV.
+	* 
+	* The screen has no depth, so we don't need to apply any transformation to the Z coordinate,
+	* but we still need to keep it for the perspective division later:
+	* the more distant the object, the smaller it will appear.
+	*/
+	float clipX = viewX / horizontal_fov_tan;
+	float clipY = viewY / vertical_fov_tan;
 	float clipW = viewZ;
 
-	// Clip Space -> NDC
-	float ndcX = clipX / clipW;
+	// 3. Clip Space -> NDC
+	float ndcX = clipX / clipW; // perspective division, divide by W to get normalized device coordinates
 	float ndcY = clipY / clipW;
 
-	// Controllo visibilità 2D
 	if (ndcX < -1.0f || ndcX > 1.0f ||
 		ndcY < -1.0f || ndcY > 1.0f)
-		return Vector2(-1.0f, -1.0f);
+		return Vector2(-1.0f, -1.0f); // Entity is outside the screen bounds, again return an invalid position
 
-	// NDC -> Screen Space
+	// 4. NDC -> Screen Space
 	auto x = (ndcX + 1.0f) * 0.5f * screenWidth;
 	auto y = (1.0f - ndcY) * 0.5f * screenHeight;
 
