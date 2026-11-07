@@ -19,9 +19,19 @@ void draw_esp(Memory& mem, std::uint32_t localPlayer);
 * @param mem Reference to the Memory object for reading game memory.
 * @param entityAddress The address of the entity in memory.
 * 
-* @return The position of the entity in the game world.
+* @return The position of the entity's head in the game world.
 */
-Vector3 get_entity_pos(Memory& mem, std::uint32_t entityAddress) noexcept;
+Vector3 get_entity_head_pos(Memory& mem, std::uint32_t entityAddress) noexcept;
+
+/*
+* @brief Gets the position of an entity in the game world.
+*
+* @param mem Reference to the Memory object for reading game memory.
+* @param entityAddress The address of the entity in memory.
+*
+* @return The position of the entity's feet in the game world.
+*/
+Vector3 get_entity_feet_pos(Memory& mem, std::uint32_t entityAddress) noexcept;
 
 /* @brief Converts world coordinates to screen coordinates for rendering.
 * 
@@ -34,4 +44,4 @@ Vector3 get_entity_pos(Memory& mem, std::uint32_t entityAddress) noexcept;
 * 
 * @return The screen coordinates corresponding to the world coordinates of the entity.
 */
-Vector2 world_to_screen(Memory& mem, std::uint32_t moduleBase, std::uint32_t entityAddress, std::uint32_t localPlayer, int screenWidth, int screenHeight) noexcept;
+Vector2 world_to_screen(Memory& mem, std::uint32_t moduleBase, Vector3 worldPos, std::uint32_t localPlayer, int screenWidth, int screenHeight) noexcept;

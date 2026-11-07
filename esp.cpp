@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <vector>
 #include <cstdint>
+#include <format>
+#include <string>
 
 
 double const PI = 3.14159265358979323846;
@@ -43,10 +45,11 @@ void draw_esp(Memory& mem, uint32_t localPlayer)
 
 	// Iterate through the entity list and draw ESP for each entity
 	for (uint32_t i = 1; i <= entityCount; ++i) {
-		uint32_t entityAddress, health, team_entity, team_player;
+		uint32_t entityAddress, health, armor, team_entity, team_player;
 		try {
 			entityAddress = mem.Read<uint32_t>(entityList + i * sizeof(uint32_t));
 			health = mem.Read<uint32_t>(entityAddress + offsets::health);
+			armor = mem.Read<uint32_t>(entityAddress + offsets::armor);
 			team_entity = mem.Read<uint32_t>(entityAddress + offsets::team);
 			team_player = mem.Read<uint32_t>(localPlayer + offsets::team);
 		}
@@ -62,23 +65,44 @@ void draw_esp(Memory& mem, uint32_t localPlayer)
 			continue; // Skip entities in the same team
 		}
 
+		Vector3 worldPos_head = get_entity_head_pos(mem, entityAddress);
+		Vector3 worldPos_feet = get_entity_feet_pos(mem, entityAddress);
+		if ((worldPos_head.x == 0.0f && worldPos_head.y == 0.0f && worldPos_head.z == 0.0f) ||
+			(worldPos_feet.x == 0.0f && worldPos_feet.y == 0.0f && worldPos_feet.z == 0.0f)) {
+			continue;
+		}
+
 		// Retrive the screen position of the entity
-		Vector2 screenPos = world_to_screen(
+		Vector2 screenPos_head = world_to_screen(
 			mem,
 			moduleBase,
-			entityAddress,
+			worldPos_head,
 			localPlayer,
 			static_cast<int>(screenSize.x),
 			static_cast<int>(screenSize.y));
-		if (screenPos.x < 0 || screenPos.y < 0) {
+
+		Vector2 screenPos_feet = world_to_screen(
+			mem,
+			moduleBase,
+			worldPos_feet,
+			localPlayer,
+			static_cast<int>(screenSize.x),
+			static_cast<int>(screenSize.y));
+
+		if (screenPos_head.x < 0 || screenPos_head.y < 0 || screenPos_feet.x < 0 || screenPos_feet.y < 0) {
 			continue; // Entity is not on screen
 		}
-		DrawLine(line_start_position, screenPos, Colors::Green, 1.0f);
+
+		DrawLine(line_start_position, screenPos_feet, Colors::Green, 1.0f);
+		Vector2 corner(screenPos_head.x - 20.0f, screenPos_head.y - 30.0f);
+		DrawBox(corner, 40.0f, screenPos_feet.y - screenPos_head.y + 30.0f, Colors::Green, 1.0f);
+		std::string text = std::format("HP: {}\nArmor: {}", health, armor);
+		DrawString(corner - Vector2(0.0f, 30.0f), text.c_str(), Colors::Green);
 	}
 }
 
-Vector3 get_entity_pos(Memory& mem, uint32_t entityAddress) noexcept {
-	// Attempt to read the entity's (head) position from memory
+Vector3 get_entity_head_pos(Memory& mem, uint32_t entityAddress) noexcept {
+	// Attempt to read the entity's head position from memory
 	try {
 		float x = mem.Read<float>(entityAddress + offsets::head_coord_x);
 		float y = mem.Read<float>(entityAddress + offsets::head_coord_y);
@@ -90,7 +114,20 @@ Vector3 get_entity_pos(Memory& mem, uint32_t entityAddress) noexcept {
 	}
 }
 
-Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress, uint32_t localPlayer, int screenWidth, int screenHeight) noexcept
+Vector3 get_entity_feet_pos(Memory& mem, uint32_t entityAddress) noexcept {
+	// Attempt to read the entity's position from memory
+	try {
+		float x = mem.Read<float>(entityAddress + offsets::coord_x);
+		float y = mem.Read<float>(entityAddress + offsets::coord_y);
+		float z = mem.Read<float>(entityAddress + offsets::coord_z);
+		return Vector3(x, y, z);
+	}
+	catch (const std::runtime_error& e) {
+		return Vector3(0.0f, 0.0f, 0.0f); // Return a default value
+	}
+}
+
+Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, Vector3 worldPos, uint32_t localPlayer, int screenWidth, int screenHeight) noexcept
 {
 	/* World to screen conversion:
 	* 1. World Space (3d coordinates) -> View Space (3D coordinates in the camera's reference frame)
@@ -102,11 +139,11 @@ Vector2 world_to_screen(Memory& mem, uint32_t moduleBase, uint32_t entityAddress
 	* I'll manually do the conversion using the camera's orientation, position and fov.
 	*/
 
-	// Get the world position of the entity
-	Vector3 worldPos = get_entity_pos(mem, entityAddress);
+	/* Get the world position of the entity
+	Vector3 worldPos = get_entity_head_pos(mem, entityAddress);
 	if (worldPos.x == 0.0f && worldPos.y == 0.0f && worldPos.z == 0.0f) {
 		return Vector2(-1.0f, -1.0f); // Invalid position
-	}
+	}*/
 
 	// Retrive camera parameters to perform the transformation from memory
 	float cam_x, cam_y, cam_z, cam_yaw, cam_pitch, fov;

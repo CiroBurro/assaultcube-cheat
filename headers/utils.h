@@ -183,3 +183,14 @@ inline void DrawBox(Vector2 topLeft, float width, float height, ImU32 color = Co
 		ImVec2(topLeft.x + width, topLeft.y + height),
 		color, 0.0f, 0, thickness);
 }
+
+/**
+* @brief Draws a string on the screen using ImGui.
+* @param position The position of the string.
+* @param text The text to draw.
+* @param color The color of the text.
+*/
+inline void DrawString(Vector2 position, const char* text, ImU32 color = Colors::White)
+{
+	ImGui::GetBackgroundDrawList()->AddText(ImVec2(position.x, position.y), color, text);
+}
