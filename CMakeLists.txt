@@ -21,7 +21,7 @@ add_executable (ac_cheat
     "headers/memory.h"
     "headers/offsets.h"
     "headers/esp.h"
-    "headers/Overlay.h"
+    
     "esp.cpp"
     )
 
@@ -65,4 +65,5 @@ target_link_libraries(ac_cheat PRIVATE
     d3d11
     dxgi
     d3dcompiler
+    user32
 )
