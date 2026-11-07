@@ -20,7 +20,10 @@ add_executable (ac_cheat
     "headers/process.h"
     "headers/memory.h"
     "headers/offsets.h"
- "headers/esp.h" "esp.cpp")
+    "headers/esp.h"
+    "headers/Overlay.h"
+    "esp.cpp"
+    )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET ac_cheat PROPERTY CXX_STANDARD 20)
@@ -37,7 +40,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(imgui)
 
-add_library(imgui
+add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
@@ -48,6 +51,18 @@ add_library(imgui
 set_property(TARGET imgui PROPERTY CXX_STANDARD 20)
 set_property(TARGET imgui PROPERTY CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends) 
+target_include_directories(imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE imgui  d3d11 dxgi d3dcompiler)
+target_include_directories(ac_cheat PRIVATE
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+
+target_link_libraries(ac_cheat PRIVATE
+    imgui
+    d3d11
+    dxgi
+    d3dcompiler
+)

@@ -61,7 +61,7 @@ public:
 		}
 	}
 
-	const std::uintptr_t getModuleBaseAddress(const std::string_view moduleName) const {
+	const uintptr_t getModuleBaseAddress(const std::string_view moduleName) const {
 		// Create a snapshot of all modules in the process
 		auto snapshot = AutoReleaseHandle(CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid));
 		if (!snapshot) {

@@ -10,14 +10,14 @@
 #include "headers/Overlay.h"
 #include "headers/esp.h"
 
+
 bool health_hack = false;
 bool armor_hack = false;
 bool ammo_hack = false;
 bool esp_hack = false;
 bool show_menu = false;
 
-
-void RenderMenu(Process& process, uint32_t entityListAddress, uint32_t localPlayerAddress)
+void RenderMenu()
 {
 	if (show_menu) {
 		ImGui::Begin("Menu");
@@ -28,64 +28,54 @@ void RenderMenu(Process& process, uint32_t entityListAddress, uint32_t localPlay
 		ImGui::Checkbox("Enable ESP", &esp_hack);
 
 		ImGui::End();
-	} 
-	if (esp_hack) {
-		draw_esp(process, entityListAddress, localPlayerAddress);
+	}
+}
+void godMode(Memory& mem, uint32_t localPlayerAddress) {
+	if (localPlayerAddress != 0) {
+		uint32_t health = mem.Read<uint32_t>(localPlayerAddress + offsets::health);
+		uint32_t armor = mem.Read<uint32_t>(localPlayerAddress + offsets::armor);
+		uint32_t mpt_57_ammo = mem.Read<uint32_t>(localPlayerAddress + offsets::mpt_57_ammo);
+		uint32_t mk_77_ammo = mem.Read<uint32_t>(localPlayerAddress + offsets::mk_77_ammo);
+
+		if (health_hack && health < 1337) {
+			mem.Write<uint32_t>(localPlayerAddress + offsets::health, 1337);
+		}
+		if (armor_hack && armor < 1337) {
+			mem.Write<uint32_t>(localPlayerAddress + offsets::armor, 1337);
+		}
+		if (ammo_hack && (mpt_57_ammo < 100 || mk_77_ammo < 100)) {
+			mem.Write<uint32_t>(localPlayerAddress + offsets::mpt_57_ammo, 9999);
+			mem.Write<uint32_t>(localPlayerAddress + offsets::mk_77_ammo, 9999);
+		}
+	}
+}
+void esp(Memory& mem, uint32_t localPlayerAddress) {
+	if (esp_hack && localPlayerAddress != 0) {
+		draw_esp(mem, localPlayerAddress);
 	}
 }
 
 int main()
 {
+
 	// Initialize ImGui backend
 	ImGuiBackend backend(1920, 1080, L"AssaultCube Cheat");
 
-	// Attach to the AssaultCube process and get the necessary addresses
+	//Attach to the AssaultCube process and get the necessary addresses
 	Process process("ac_client.exe");
 	auto moduleBase = process.getModuleBaseAddress("ac_client.exe");
-	uint32_t localPlayerAddress{};
-	uint32_t entityListAddress{};
-
-	if (!mem::read(process, moduleBase + offsets::local_player, localPlayerAddress) ||
-		!mem::read(process, moduleBase + offsets::entity_list, entityListAddress)) {
-		std::cerr << "Failed to read game addresses" << std::endl;
-		return 1;
-	}
-
-	/* debug prints
-	std::cout << "PID: " << process.getPid() << std::endl;
-	std::cout << "Module Base: " << std::hex << moduleBase << std::endl;
-	std::cout << "Local Player: " << std::hex << localPlayerAddress << std::endl;
-	std::cout << "Entity List: " << std::hex << entityListAddress << std::endl;
-	*/
-
-	std::uint32_t health{}, armor{}, mpt_57_ammo{}, mk_77_ammo{};
-
+	Memory mem(process);
+	uint32_t localPlayerAddress = mem.Read<uint32_t>(moduleBase + offsets::local_player);
+	uint32_t entityListAddress = mem.Read<uint32_t>(moduleBase + offsets::entity_list);
+	
 	// Main loop
 	while (backend.ProcessMessages() && process) {
 		backend.NewFrame();
-		RenderMenu(process, entityListAddress, localPlayerAddress);
+		RenderMenu();
 
-		// Cheat logic: read and modify player values based on the enabled hacks
-		if (mem::read(process, moduleBase + offsets::local_player, localPlayerAddress) && localPlayerAddress != 0) {
-			const bool valuesRead =
-				mem::read(process, localPlayerAddress + offsets::health, health) &&
-				mem::read(process, localPlayerAddress + offsets::armor, armor) &&
-				mem::read(process, localPlayerAddress + offsets::mpt_57_ammo, mpt_57_ammo) &&
-				mem::read(process, localPlayerAddress + offsets::mk_77_ammo, mk_77_ammo);
-
-			if (valuesRead) {
-				if (health_hack && health < 100) {
-					mem::write(process, localPlayerAddress + offsets::health, std::uint32_t{ 1337 });
-				}
-				if (armor_hack && armor < 100) {
-					mem::write(process, localPlayerAddress + offsets::armor, std::uint32_t{ 1337 });
-				}
-				if (ammo_hack && (mpt_57_ammo < 100 || mk_77_ammo < 100)) {
-					mem::write(process, localPlayerAddress + offsets::mpt_57_ammo, std::uint32_t{ 9999 });
-					mem::write(process, localPlayerAddress + offsets::mk_77_ammo, std::uint32_t{ 9999 });
-				}
-			}
-		}
+		// Hack!
+		esp(mem, localPlayerAddress);
+		godMode(mem, localPlayerAddress);
 
 		backend.Render();
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
