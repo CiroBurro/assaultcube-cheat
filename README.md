@@ -1,7 +1,7 @@
 # Yet another assault cube cheat
 This repo stores the source code, my cheat table and the IDA Pro db I made while writing my first videogame hack!
 
-<img width="960" height="540" alt="ac_cheat" src="https://github.com/user-attachments/assets/1a45cd16-d6ab-42e9-afd7-1db09e2da90b" />
+<img width="960" height="540" alt="ac_cheat" src="https://github.com/user-attachments/assets/acb3804c-d8a1-48c5-9ba5-9f6f03b06c23" />
 
 ## DISCLAIMER!
 This project is purely for educational purposes only: assault cube is a single-player game and I, as a gamer myself, do not intend to ruin other's people game experience.
@@ -19,7 +19,7 @@ I did not include other weapons compatibility, such as the sniper, since this is
 
 ### ESP (Extra Sensory Perception)
 This hack let the player discover many information he should not know: enemies' health, equipment and especially position (**wallhack**).
-The full implementation is currently under development, right now it does only show where the enemies are in the map by drawing a line and a box around the entity too
+To work properly this hack need the game run in **windowed fullscreen** otherwise the overlay will not appear or enemy position won't be correct
 
 ## Technical details
 The idea is very simple: find the address in memory of the data you want to read/write, find an offset or a static pointer to that address so that you can reach it every time you launche the game bypassing protections like ASLR, automate the process of reading/writing the game's memory using a programming language.
